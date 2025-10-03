@@ -1,4 +1,10 @@
 
+# Blocco di accesso con password
+PASSWORD = "15092001"  # puoi cambiarla come vuoi
+password = st.text_input("🔒 Inserisci la password per accedere all'app", type="password")
+if password != PASSWORD:
+    st.warning("❌ Password errata o non inserita.")
+    st.stop()
 import streamlit as st
 from PIL import Image
 from fpdf import FPDF
