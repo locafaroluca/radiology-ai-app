@@ -1,3 +1,4 @@
+
 import streamlit as st
 import os
 import json
@@ -33,4 +34,3 @@ else:
                 st.image(Image.open(img_path), caption=base, use_column_width=True)
 
             st.markdown("---")
-          aggiunto file pagina Referti
