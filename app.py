@@ -1,63 +1,72 @@
 
 import streamlit as st
-import os
-import uuid
-import json
 from PIL import Image
-import random
+import uuid
+import io
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from datetime import datetime
 
-st.set_page_config(page_title="Radiology AI – All-in-One", page_icon="🧠")
-st.title("🧠 Radiology AI – All-in-One")
-st.markdown("Carica un'immagine radiologica (RX, TAC, ecc.) e seleziona il distretto da analizzare:")
+st.set_page_config(page_title="Radiology AI", page_icon="🧠")
+st.title("🧠 Radiology AI – Referto PDF Demo")
 
-DISTRETTI = [
-    "Torace", "Addome", "Cranio", "Colonna vertebrale", "Arti superiori", "Arti inferiori"
-]
-
-uploaded_file = st.file_uploader("📤 Carica un'immagine", type=["jpg", "png", "jpeg"])
-distretto = st.selectbox("📍 Distretto anatomico", DISTRETTI)
-
+# Caricamento immagine
+uploaded_file = st.file_uploader("📤 Carica un'immagine radiologica", type=["jpg", "jpeg", "png"])
 if uploaded_file:
     img = Image.open(uploaded_file)
     st.image(img, caption="Immagine caricata", use_container_width=True)
 
-    st.subheader("🧠 Analisi AI in corso...")
-
-    # Finta AI: risultati casuali
-    possibili_anomalie = {
-        "Torace": ["Infiltrati", "Polmonite", "Edema", "Versamento pleurico", "Massa"],
-        "Addome": ["Occlusione", "Masse addominali", "Perforazione", "Calcificazioni", "Distensione"],
-        "Cranio": ["Emorragia", "Frattura", "Edema cerebrale", "Lesione occupante spazio"],
-        "Colonna vertebrale": ["Frattura vertebrale", "Ernia del disco", "Stenosi", "Spondilolistesi"],
-        "Arti superiori": ["Frattura", "Lussazione", "Osteoporosi", "Infiammazione articolare"],
-        "Arti inferiori": ["Frattura", "Artrosi", "Infiammazione", "Trombosi"]
+    # Simulazione referto
+    predictions = {
+        "Infiltrati": 0.68,
+        "Polmonite": 0.54,
+        "Edema": 0.64
     }
 
-    anomalie = random.sample(possibili_anomalie.get(distretto, []), k=2)
-    risultati = {a: round(random.uniform(0.6, 0.95), 2) for a in anomalie}
+    referto_lines = [
+        "Referto AI",
+        f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        "",
+        "Possibili anomalie riscontrate:"
+    ] + [f"- {k}: {v}" for k, v in predictions.items()] + [
+        "",
+        "Si consiglia correlazione clinica."
+    ]
+    referto_text = "\n".join(referto_lines)
 
-    st.success("✅ Referto AI generato con successo")
-    for k, v in risultati.items():
-        st.write(f"- {k}: {v}")
+    st.subheader("📝 Referto")
+    st.text(referto_text)
 
-    referto = f"Nel distretto {distretto} si rilevano possibili anomalie: " +               ", ".join([f"{k} ({v})" for k, v in risultati.items()]) + ". Si consiglia correlazione clinica."
+    # Funzione per creare PDF
+    def genera_pdf_referto(referto_text, image):
+        buffer = io.BytesIO()
+        c = canvas.Canvas(buffer, pagesize=A4)
+        width, height = A4
 
-    st.markdown("### 📝 Referto finale")
-    st.write(referto)
+        x_margin = 50
+        y_position = height - 50
 
-    # Salvataggio
-    if st.button("💾 Salva referto"):
-        ref_id = str(uuid.uuid4())
-        img_path = f"training_data/{ref_id}.jpg"
-        json_path = f"training_data/{ref_id}.json"
+        for line in referto_text.split("\n"):
+            c.drawString(x_margin, y_position, line)
+            y_position -= 20
 
-        img.save(img_path)
+        # Converti e salva immagine temporaneamente
+        img_id = f"temp_{uuid.uuid4().hex}.jpg"
+        image = image.convert("RGB")
+        image.save(img_id)
 
-        with open(json_path, "w") as f:
-            json.dump({
-                "regione": distretto,
-                "anomalie": risultati,
-                "referto": referto
-            }, f)
+        c.showPage()
+        c.save()
+        buffer.seek(0)
+        return buffer
 
-        st.success(f"Referto salvato correttamente con ID: {ref_id}")
+    # Download del PDF
+    pdf_buffer = genera_pdf_referto(referto_text, img)
+    st.download_button(
+        label="📄 Scarica referto in PDF",
+        data=pdf_buffer,
+        file_name="referto_ai.pdf",
+        mime="application/pdf"
+    )
+
+
