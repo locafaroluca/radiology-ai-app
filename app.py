@@ -1,72 +1,58 @@
 
 import streamlit as st
 from PIL import Image
-import uuid
-import io
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from datetime import datetime
+from fpdf import FPDF
+import os
+import datetime
 
-st.set_page_config(page_title="Radiology AI", page_icon="🧠")
+# Titolo dell'app
+st.set_page_config(page_title="Radiology AI - Referto PDF Demo", layout="centered")
 st.title("🧠 Radiology AI – Referto PDF Demo")
 
 # Caricamento immagine
-uploaded_file = st.file_uploader("📤 Carica un'immagine radiologica", type=["jpg", "jpeg", "png"])
-if uploaded_file:
+st.subheader("🖼️ Carica un'immagine radiologica")
+uploaded_file = st.file_uploader("Carica un'immagine radiologica", type=["jpg", "jpeg", "png"])
+
+# Selezione del distretto anatomico
+st.subheader("📍 Seleziona il distretto anatomico")
+distretto = st.selectbox("Distretto", ["Torace", "Addome", "Cranio", "Colonna vertebrale", "Arti superiori", "Arti inferiori"])
+
+# Generazione del referto
+if uploaded_file is not None:
     img = Image.open(uploaded_file)
     st.image(img, caption="Immagine caricata", use_container_width=True)
 
-    # Simulazione referto
-    predictions = {
-        "Infiltrati": 0.68,
-        "Polmonite": 0.54,
-        "Edema": 0.64
-    }
+    # Referto simulato
+    st.subheader("📝 Referto AI")
+    referto = f"Possibili anomalie riscontrate nel distretto {distretto.lower()}: infiltrati, edema, anomalie strutturali.\n"
+    referto += "Si consiglia correlazione clinica e confronto con immagini precedenti."
 
-    referto_lines = [
-        "Referto AI",
-        f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-        "",
-        "Possibili anomalie riscontrate:"
-    ] + [f"- {k}: {v}" for k, v in predictions.items()] + [
-        "",
-        "Si consiglia correlazione clinica."
-    ]
-    referto_text = "\n".join(referto_lines)
+    st.text_area("Referto", referto, height=150)
 
-    st.subheader("📝 Referto")
-    st.text(referto_text)
+    # Bottone per generare il PDF
+    if st.button("📄 Genera PDF"):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
 
-    # Funzione per creare PDF
-    def genera_pdf_referto(referto_text, image):
-        buffer = io.BytesIO()
-        c = canvas.Canvas(buffer, pagesize=A4)
-        width, height = A4
+        pdf.cell(200, 10, txt="Referto Radiologico AI", ln=True, align="C")
+        pdf.cell(200, 10, txt=f"Data: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align="C")
+        pdf.ln(10)
 
-        x_margin = 50
-        y_position = height - 50
+        pdf.set_font("Arial", style="B", size=12)
+        pdf.cell(200, 10, txt=f"Distretto Anatomico: {distretto}", ln=True)
+        pdf.ln(5)
 
-        for line in referto_text.split("\n"):
-            c.drawString(x_margin, y_position, line)
-            y_position -= 20
+        pdf.set_font("Arial", size=12)
+        for riga in referto.split("\n"):
+            pdf.multi_cell(0, 10, riga)
 
-        # Converti e salva immagine temporaneamente
-        img_id = f"temp_{uuid.uuid4().hex}.jpg"
-        image = image.convert("RGB")
-        image.save(img_id)
+        filename = f"referto_{distretto.lower().replace(' ', '_')}.pdf"
+        pdf.output(filename)
 
-        c.showPage()
-        c.save()
-        buffer.seek(0)
-        return buffer
+        with open(filename, "rb") as f:
+            st.download_button("📥 Scarica PDF", f, file_name=filename)
 
-    # Download del PDF
-    pdf_buffer = genera_pdf_referto(referto_text, img)
-    st.download_button(
-        label="📄 Scarica referto in PDF",
-        data=pdf_buffer,
-        file_name="referto_ai.pdf",
-        mime="application/pdf"
-    )
+        os.remove(filename)
 
 
