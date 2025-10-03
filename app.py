@@ -17,9 +17,10 @@ DISTRETTI = [
 uploaded_file = st.file_uploader("📤 Carica un'immagine", type=["jpg", "png", "jpeg"])
 distretto = st.selectbox("📍 Distretto anatomico", DISTRETTI)
 
-if uploaded_file and distretto:
-    img = Image.open(uploaded_file).convert("RGB")
-   st.image(img, caption="Immagine caricata", use_container_width=True)
+if uploaded_file:
+    img = Image.open(uploaded_file)
+    st.image(img, caption="Immagine caricata", use_container_width=True)
+
     st.subheader("🧠 Analisi AI in corso...")
 
     # Finta AI: risultati casuali
