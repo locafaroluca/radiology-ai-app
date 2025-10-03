@@ -19,7 +19,7 @@ distretto = st.selectbox("📍 Distretto anatomico", DISTRETTI)
 
 if uploaded_file and distretto:
     img = Image.open(uploaded_file).convert("RGB")
-    st.image(img, caption="Immagine caricata", use_column_width=True)
+   st.image(img, caption="Immagine caricata", use_container_width=True)
 
     st.subheader("🧠 Analisi AI in corso...")
 
