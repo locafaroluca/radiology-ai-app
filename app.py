@@ -1,65 +1,97 @@
 
 import streamlit as st
 from PIL import Image
-from fpdf import FPDF
+import pydicom
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+import uuid
+import io
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from datetime import datetime
 import os
-import datetime
 
-# 🔒 Blocco password (semplice protezione)
-PASSWORD = "15092001"  # ← puoi cambiarla come vuoi
+# 🔐 Password (semplice protezione)
+PASSWORD = "15092001"
 password = st.text_input("🔒 Inserisci la password per accedere all'app", type="password")
 if password != PASSWORD:
     st.warning("❌ Password errata o non inserita.")
     st.stop()
-    
-# Titolo dell'app
-st.set_page_config(page_title="Radiology AI - Referto PDF Demo", layout="centered")
-st.title("🧠 Radiology AI – Referto PDF Demo")
 
-# Caricamento immagine
-st.subheader("🖼️ Carica un'immagine radiologica")
-uploaded_file = st.file_uploader("Carica un'immagine radiologica", type=["jpg", "jpeg", "png"])
+st.set_page_config(page_title="Radiology AI – Autoapprendimento", layout="centered")
+st.title("🧠 Radiology AI – Referto con Autoapprendimento")
 
-# Selezione del distretto anatomico
-st.subheader("📍 Seleziona il distretto anatomico")
-distretto = st.selectbox("Distretto", ["Torace", "Addome", "Cranio", "Colonna vertebrale", "Arti superiori", "Arti inferiori"])
+# Upload immagine
+uploaded_file = st.file_uploader("📤 Carica immagine DICOM o PNG/JPG", type=["dcm", "jpg", "jpeg", "png"])
+img = None
 
-# Generazione del referto
-if uploaded_file is not None:
-    img = Image.open(uploaded_file)
-    st.image(img, caption="Immagine caricata", use_container_width=True)
+# Selezione distretto
+distretto = st.selectbox("📍 Seleziona il distretto", [
+    "Torace", "Addome", "Cranio", "Colonna vertebrale", "Arti superiori", "Arti inferiori"
+])
+
+if uploaded_file:
+    file_ext = uploaded_file.name.split('.')[-1].lower()
+    if file_ext == "dcm":
+        dcm = pydicom.dcmread(uploaded_file)
+        pixel_array = dcm.pixel_array
+        norm_img = (pixel_array - np.min(pixel_array)) / (np.max(pixel_array) - np.min(pixel_array))
+        norm_img = (norm_img * 255).astype(np.uint8)
+        img = Image.fromarray(norm_img)
+        st.image(img, caption="🩻 Immagine DICOM", use_container_width=True)
+    else:
+        img = Image.open(uploaded_file)
+        st.image(img, caption="🖼️ Immagine caricata", use_container_width=True)
 
     # Referto simulato
     st.subheader("📝 Referto AI")
-    referto = f"Possibili anomalie riscontrate nel distretto {distretto.lower()}: infiltrati, edema, anomalie strutturali.\n"
-    referto += "Si consiglia correlazione clinica e confronto con immagini precedenti."
+    referto = f"Possibili anomalie nel distretto {distretto.lower()}: Infiltrati (0.68), Edema (0.64), Polmonite (0.54).\n"
+    referto += "Si consiglia correlazione clinica."
+    st.text_area("Referto generato", referto, height=150)
 
-    st.text_area("Referto", referto, height=150)
+    # Feedback utente
+    st.subheader("🧬 Feedback dell'utente")
+    feedback = st.radio("Il referto è corretto?", ["✅ Sì", "❌ No"])
+    note = st.text_area("📝 Note o correzioni (facoltative)")
 
-    # Bottone per generare il PDF
-    if st.button("📄 Genera PDF"):
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", size=12)
+    # Pulsante salvataggio PDF + feedback
+    if st.button("💾 Salva referto + feedback e genera PDF"):
+        # PDF
+        buffer = io.BytesIO()
+        c = canvas.Canvas(buffer, pagesize=A4)
+        width, height = A4
+        x, y = 50, height - 50
+        c.setFont("Helvetica", 12)
+        c.drawString(x, y, "Referto AI – Radiologia Multiorgano")
+        y -= 20
+        c.drawString(x, y, f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        y -= 20
+        c.drawString(x, y, f"Distretto: {distretto}")
+        y -= 30
+        for line in referto.split("\n"):
+            c.drawString(x, y, line)
+            y -= 20
+        c.showPage()
+        c.save()
+        buffer.seek(0)
 
-        pdf.cell(200, 10, txt="Referto Radiologico AI", ln=True, align="C")
-        pdf.cell(200, 10, txt=f"Data: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align="C")
-        pdf.ln(10)
+        st.download_button("📄 Scarica PDF referto", buffer, file_name=f"referto_{distretto.lower()}.pdf", mime="application/pdf")
 
-        pdf.set_font("Arial", style="B", size=12)
-        pdf.cell(200, 10, txt=f"Distretto Anatomico: {distretto}", ln=True)
-        pdf.ln(5)
-
-        pdf.set_font("Arial", size=12)
-        for riga in referto.split("\n"):
-            pdf.multi_cell(0, 10, riga)
-
-        filename = f"referto_{distretto.lower().replace(' ', '_')}.pdf"
-        pdf.output(filename)
-
-        with open(filename, "rb") as f:
-            st.download_button("📥 Scarica PDF", f, file_name=filename)
-
-        os.remove(filename)
-
+        # Salvataggio feedback
+        log_row = {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "distretto": distretto,
+            "referto_ai": referto.replace("\n", " "),
+            "feedback": feedback,
+            "note": note
+        }
+        log_file = "feedback_log.csv"
+        if os.path.exists(log_file):
+            df = pd.read_csv(log_file)
+            df = pd.concat([df, pd.DataFrame([log_row])], ignore_index=True)
+        else:
+            df = pd.DataFrame([log_row])
+        df.to_csv(log_file, index=False)
+        st.success("✅ Feedback salvato correttamente.")
 
