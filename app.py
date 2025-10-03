@@ -1,16 +1,17 @@
 
-# Blocco di accesso con password
-PASSWORD = "15092001"  # puoi cambiarla come vuoi
-password = st.text_input("🔒 Inserisci la password per accedere all'app", type="password")
-if password != PASSWORD:
-    st.warning("❌ Password errata o non inserita.")
-    st.stop()
 import streamlit as st
 from PIL import Image
 from fpdf import FPDF
 import os
 import datetime
 
+# 🔒 Blocco password (semplice protezione)
+PASSWORD = "radiology123"  # ← puoi cambiarla come vuoi
+password = st.text_input("🔒 Inserisci la password per accedere all'app", type="password")
+if password != PASSWORD:
+    st.warning("❌ Password errata o non inserita.")
+    st.stop()
+    
 # Titolo dell'app
 st.set_page_config(page_title="Radiology AI - Referto PDF Demo", layout="centered")
 st.title("🧠 Radiology AI – Referto PDF Demo")
