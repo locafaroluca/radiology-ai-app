@@ -6,7 +6,7 @@ import os
 import datetime
 
 # 🔒 Blocco password (semplice protezione)
-PASSWORD = "radiology123"  # ← puoi cambiarla come vuoi
+PASSWORD = "15092001"  # ← puoi cambiarla come vuoi
 password = st.text_input("🔒 Inserisci la password per accedere all'app", type="password")
 if password != PASSWORD:
     st.warning("❌ Password errata o non inserita.")
